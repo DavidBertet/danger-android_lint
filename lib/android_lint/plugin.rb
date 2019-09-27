@@ -26,7 +26,7 @@ module Danger
 
     SEVERITY_LEVELS = ["Warning", "Error", "Fatal"]
 
-    # Location of lint report file
+    # Location of lint report file in your project folder
     # If your Android lint task outputs to a different location, you can specify it here.
     # Defaults to "app/build/reports/lint/lint-result.xml".
     # @return [String]
@@ -34,7 +34,7 @@ module Danger
     # A getter for `report_file`.
     # @return [String]
     def report_file
-      return @report_file || 'app/build/reports/lint/lint-result.xml'
+      return project_folder + "/" + (@report_file || 'app/build/reports/lint/lint-result.xml')
     end
 
     # Custom gradle task to run.
@@ -42,6 +42,11 @@ module Danger
     # Defaults to "lint".
     # @return [String]
     attr_accessor :gradle_task
+    # A getter for `gradle_task`, returning "lint" if value is nil.
+    # @return [String]
+    def gradle_task
+      @gradle_task || "lint"
+    end
 
     # Defines the severity level of the execution.
     # Selected levels are the chosen one and up.
@@ -49,6 +54,11 @@ module Danger
     # Defaults to "Warning".
     # @return [String]
     attr_writer :severity
+    # A getter for `severity`, returning "Warning" if value is nil.
+    # @return [String]
+    def severity
+      @severity || SEVERITY_LEVELS.first
+    end
 
     # Enable filtering
     # Only show messages within changed files.
@@ -56,6 +66,16 @@ module Danger
 
     # Skip gradle task
     attr_accessor :skip_gradle_task
+
+    # Choose project folder
+    # Defaults to "."
+    # Path to the project folder
+    attr_accessor :project_folder
+    # A getter for `project_folder`, returning "." if value is nil.
+    # @return [String]
+    def project_folder
+      @project_folder || "."
+    end
 
     # Calls lint task of your gradle project.
     # It fails if `gradlew` cannot be found inside current directory.
@@ -65,7 +85,7 @@ module Danger
     #
     def lint(inline_mode: false)
       if !skip_gradle_task && !gradlew_exists?
-        fail("Could not find `gradlew` inside current directory")
+        fail("Could not find `gradlew` inside the project folder directory")
         return
       end
 
@@ -74,7 +94,7 @@ module Danger
         return
       end
 
-      system "./gradlew #{gradle_task || 'lint'}" unless skip_gradle_task
+      system "#{project_folder}/gradlew #{gradle_task} -p #{project_folder}" unless skip_gradle_task
 
       unless File.exists?(report_file)
         fail("Lint report not found at `#{report_file}`. "\
@@ -91,12 +111,6 @@ module Danger
         message = message_for_issues(filtered_issues)
         markdown("### AndroidLint found issues\n\n" + message) unless message.to_s.empty?
       end
-    end
-
-    # A getter for `severity`, returning "Warning" if value is nil.
-    # @return [String]
-    def severity
-      @severity || SEVERITY_LEVELS.first
     end
 
     private
@@ -177,7 +191,7 @@ module Danger
     end
 
     def gradlew_exists?
-      `ls gradlew`.strip.empty? == false
+      `ls #{project_folder}/gradlew`.strip.empty? == false
     end
   end
 end
